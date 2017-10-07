@@ -18,7 +18,7 @@
 
     function preload() {
         game.load.image('pineapple', 'pineapple.png')
-        game.load.image('background', 'background.png');
+        game.load.image('background', 'water_tile.jpg');
         game.load.spritesheet('pineappleAnimation', 'pineappleAnimation.png',165,465);
     }
 
@@ -123,20 +123,33 @@
                 this.sprite.scale.setTo(scale,scale);
                 game.add.tween(this.sprite.scale).to( {x:scale*1.4, y:scale*1.4}, 4000, Phaser.Easing.Linear.None,true, 0, 200, true);
                 game.camera.follow(this.sprite);
+
+
+                this.shadow = game.add.sprite(xPos + this.offset.x, yPos + this.offset.y, image);
+                game.physics.arcade.enable(this.shadow)
+                this.shadow.scale.setTo(scale, scale)
+                game.add.tween(this.sprite.scale).to( {x:scale * 1.4, y:scale * 1.4}, 4000, Phaser.Easing.Linear.Non, true, 0, 200, true);
+                this.shadow.tint = 0x000000;
+                this.shadow.alpha = 0.6;
+                game.world.moveDown(this.shadow)
             }
 
             addAnimation (name) {
                 this.sprite.animations.add(name);
+                this.shadow.animations.add(name);
             }
 
             playAnimation (name, framesPSecond, loop) {
                 this.sprite.animations.play(name,framesPSecond,loop);
+                this.shadow.animations.play(name, framesPSecond, loop);
             }
             //controls player movement- parameter is milliseconds until the image gets to the cursor
             movement(secondsToContact) {
                 
-                this.sprite.velocity = game.physics.arcade.moveToPointer(this.sprite,50,game.input.activePointer, secondsToContact);
+                this.sprite.velocity = game.physics.arcade.moveToPointer(this.sprite, 50, game.input.activePointer, secondsToContact);
                 this.sprite.rotation = game.physics.arcade.angleToPointer(this.sprite) + (Math.PI/2);
+                this.shadow.velocity = game.physics.arcade.moveToPointer(this.shadow, 50, game.input.activePointer, secondsToContact);
+                this.shadow.rotation = game.physics.arcade.angleToPointer(this.shadow) + (Math.PI/2);
             }
 
         }
@@ -327,7 +340,9 @@
         }
 
         //create the background
-        //tileSprite = game.add.tileSprite(0, 0, window.innerWidth*10, window.innerHeight*10, 'background');
+        tileSprite = game.add.tileSprite(0, 0, window.innerWidth*10, window.innerHeight*10, 'background');
+        tileSprite.scale.setTo(0.75, 0.75);
+        game.world.sendToBack(tileSprite)
 
         EM = new EnemyManager();
         for (var i = 0; i < NUM_ENEMIES; i++) {
