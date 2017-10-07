@@ -24,13 +24,14 @@
 
     var player;
     function create() {
-        NUM_ENEMIES = 30;
+        NUM_ENEMIES = 40;
 
         // World size
-        game.world.setBounds(0, 0, 4000, 3000);
+        game.world.setBounds(0, 0, 3000, 2000);
 
-        //cursor keys
+        // Register keys
         cursors = game.input.keyboard.createCursorKeys()
+        this.spaceKey = game.input.keyboard.addKey(Phaser.Keyboard.SPACEBAR);
 
         //  We're going to be using physics, so enable the Arcade Physics system
         game.physics.startSystem(Phaser.Physics.ARCADE);
@@ -122,16 +123,20 @@
                 game.physics.arcade.enable(this.sprite);
                 this.sprite.scale.setTo(scale,scale);
                 game.add.tween(this.sprite.scale).to( {x:scale*1.4, y:scale*1.4}, 4000, Phaser.Easing.Linear.None,true, 0, 200, true);
-                game.camera.follow(this.sprite);
+                game.camera.follow(this.sprite)
+                this.sprite.anchor.setTo(0.5, 0.0);
 
-
-                this.shadow = game.add.sprite(xPos + this.offset.x, yPos + this.offset.y, image);
+                this.shadow = game.add.sprite(xPos, yPos, image);
                 game.physics.arcade.enable(this.shadow)
                 this.shadow.scale.setTo(scale, scale)
                 game.add.tween(this.sprite.scale).to( {x:scale * 1.4, y:scale * 1.4}, 4000, Phaser.Easing.Linear.Non, true, 0, 200, true);
                 this.shadow.tint = 0x000000;
                 this.shadow.alpha = 0.6;
                 game.world.moveDown(this.shadow)
+
+                this.FRAMES_REQUIRED_FOR_SHOT = 5;
+                this.frames_since_last_shot = 6;
+                this.BULLET_SPEED = 1000.0;    
             }
 
             addAnimation (name) {
@@ -145,11 +150,24 @@
             }
             //controls player movement- parameter is milliseconds until the image gets to the cursor
             movement(secondsToContact) {
-                
+                // update shot clock
+                this.frames_since_last_shot += 1.0;                
+  
                 this.sprite.velocity = game.physics.arcade.moveToPointer(this.sprite, 50, game.input.activePointer, secondsToContact);
                 this.sprite.rotation = game.physics.arcade.angleToPointer(this.sprite) + (Math.PI/2);
                 this.shadow.velocity = game.physics.arcade.moveToPointer(this.shadow, 50, game.input.activePointer, secondsToContact);
                 this.shadow.rotation = game.physics.arcade.angleToPointer(this.shadow) + (Math.PI/2);
+            }
+
+            fire() {
+                if (this.frames_since_last_shot > this.FRAMES_REQUIRED_FOR_SHOT) {
+                    var vfa = game.physics.arcade.velocityFromAngle(this.sprite.angle, 0);
+                    var b = new Bullet(this.sprite.x - vfa.x, this.sprite.y - vfa.y, this.sprite.angle - 90, '#0000ff', this.BULLET_SPEED, 800);
+                    b.sprite.__owner_id__ = -1;
+                    BulletGroup.add(b.sprite);
+                    this.frames_since_last_shot = 0.0;
+                }
+
             }
 
         }
@@ -210,6 +228,7 @@
                 this.SURVIVAL_REWARD = 0.01;
                 this.KILL_ENEMY_REWARD = 15.0;
                 this.DRAG = 2.0;
+                this.BULLET_SPEED = 600.0;
 
                 // Reward counter
                 this.reward = 0.0
@@ -248,7 +267,7 @@
             fire() {
                 if (this.frames_since_last_shot > this.FRAMES_REQUIRED_FOR_SHOT) {
                     var vfa = game.physics.arcade.velocityFromAngle(this.sprite.angle, 8);
-                    var b = new Bullet(this.sprite.x - vfa.x, this.sprite.y - vfa.y, 180 + this.sprite.angle);
+                    var b = new Bullet(this.sprite.x - vfa.x, this.sprite.y - vfa.y, 180 + this.sprite.angle, '#ff0000',  this.BULLET_SPEED, 1500);
                     b.sprite.__owner_id__ = this.id;
                     BulletGroup.add(b.sprite);
                     this.frames_since_last_shot = 0.0;
@@ -315,15 +334,15 @@
         }
 
         class Bullet {
-            constructor(x, y, a) {
+            constructor(x, y, a, c, V, L) {
                 // bullet v
-                this.V = 600.0;
+                this.V = V;
 
                 this.bmd = game.add.bitmapData(8, 4);
                  
                 this.bmd.ctx.beginPath();
                 this.bmd.ctx.rect(0, 0, 8, 4);
-                this.bmd.ctx.fillStyle = '#ff0000';
+                this.bmd.ctx.fillStyle = c;
                 this.bmd.ctx.fill();
                 this.sprite = game.add.sprite(x, y, this.bmd);
                 game.physics.arcade.enable(this.sprite)
@@ -336,6 +355,12 @@
                 var vfa = game.physics.arcade.velocityFromAngle(this.sprite.angle, this.V);
                 this.sprite.body.velocity.x = vfa.x;
                 this.sprite.body.velocity.y = vfa.y;
+
+                this.sprite.checkWorldBounds = true;
+                this.sprite.events.onOutOfBounds.add(function(b) { b.destroy(); }, this);
+
+                // Lifespan
+                this.sprite.lifespan = L;
             }
         }
 
@@ -365,6 +390,11 @@
         //controls how fast pineapple moves towards mouse
         player.movement(500);
 
+        // Player fire bullet
+        if (this.spaceKey.isDown) {
+            player.fire();
+        }
+
 
         console.log(EM.avg_r, EM.max_r);
 
@@ -391,6 +421,11 @@
             a2.destroy()
         }
 
+        // Update bullet lifespans
+        for (var i in BulletGroup.children) {
+            if (!BulletGroup.children[i].alive) { BulletGroup.children[i].destroy(); }
+        }
+
         // Enemy collisions
         // game.physics.arcade.collide(EnemyGroup, EnemyGroup, null, enemyCollisionHandler);
         EM.removeDeadEnemies()
@@ -399,6 +434,8 @@
         game.physics.arcade.collide(EnemyGroup, BulletGroup, bulletCollisionHandler);
 
         // Kill off screen bullets
+        // ** Modified to kill only out of bounds bullets
+        /*
         for (var i in BulletGroup.children) {
             var bx = BulletGroup.children[i].x
             var by = BulletGroup.children[i].y
@@ -406,6 +443,7 @@
                 BulletGroup.children[i].destroy();
             }
         }
+        */
     }
 
 </script>
