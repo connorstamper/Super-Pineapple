@@ -36,6 +36,9 @@
         //  We're going to be using physics, so enable the Arcade Physics system
         game.physics.startSystem(Phaser.Physics.ARCADE);
 
+        // Player group
+        PlayerGroup = game.add.group();
+
         // Enemy group
         EnemyGroup = game.add.group();
 
@@ -133,10 +136,20 @@
                 this.shadow.tint = 0x000000;
                 this.shadow.alpha = 0.6;
                 game.world.moveDown(this.shadow)
+    
+                this.sprite.body.immovable = true;
+                this.shadow.body.immovable = true;
+
+                PlayerGroup.add(this.shadow)
+                PlayerGroup.add(this.sprite)
+
+                this.addAnimation('pineappleAnimation')
 
                 this.FRAMES_REQUIRED_FOR_SHOT = 5;
                 this.frames_since_last_shot = 6;
-                this.BULLET_SPEED = 1000.0;    
+                this.BULLET_SPEED = 1000.0;
+
+                this.health = 100.0;
             }
 
             addAnimation (name) {
@@ -144,14 +157,22 @@
                 this.shadow.animations.add(name);
             }
 
-            playAnimation (name, framesPSecond, loop) {
+            playAnimation(name, framesPSecond, loop) {
                 this.sprite.animations.play(name,framesPSecond,loop);
                 this.shadow.animations.play(name, framesPSecond, loop);
             }
+
             //controls player movement- parameter is milliseconds until the image gets to the cursor
             movement(secondsToContact) {
                 // update shot clock
-                this.frames_since_last_shot += 1.0;                
+                this.frames_since_last_shot += 1.0;
+
+                // update health
+                if (this.health < 100) { 
+                    this.health = Math.min(this.health *= 1.0025, 100.0);
+                    tileSpriteOverlay.alpha = 1.0 - (this.health / 100.0);
+                }
+                
   
                 this.sprite.velocity = game.physics.arcade.moveToPointer(this.sprite, 50, game.input.activePointer, secondsToContact);
                 this.sprite.rotation = game.physics.arcade.angleToPointer(this.sprite) + (Math.PI/2);
@@ -161,13 +182,17 @@
 
             fire() {
                 if (this.frames_since_last_shot > this.FRAMES_REQUIRED_FOR_SHOT) {
-                    var vfa = game.physics.arcade.velocityFromAngle(this.sprite.angle, 0);
+                    var vfa = game.physics.arcade.velocityFromAngle(this.sprite.angle - 90, -32);
                     var b = new Bullet(this.sprite.x - vfa.x, this.sprite.y - vfa.y, this.sprite.angle - 90, '#0000ff', this.BULLET_SPEED, 800);
                     b.sprite.__owner_id__ = -1;
                     BulletGroup.add(b.sprite);
                     this.frames_since_last_shot = 0.0;
                 }
+            }
 
+            got_hit() {
+                this.health -= 15.0;
+                if (this.health < 0.0) { this.sprite.reset(0,0); this.shadow.reset(0, 0); this.health = 100.0; tileSpriteOverlay.alpha = 0.0; }
             }
 
         }
@@ -367,6 +392,13 @@
         //create the background
         tileSprite = game.add.tileSprite(0, 0, window.innerWidth*10, window.innerHeight*10, 'background');
         tileSprite.scale.setTo(0.75, 0.75);
+        tileSpriteOverlay = game.add.tileSprite(0, 0, window.innerWidth*10, window.innerHeight*10, 'background');
+        tileSpriteOverlay.scale.setTo(0.75, 0.75);
+        tileSpriteOverlay.tint = 0xff0000;
+        tileSpriteOverlay.alpha = 0.0;
+
+
+        game.world.sendToBack(tileSpriteOverlay)
         game.world.sendToBack(tileSprite)
 
         EM = new EnemyManager();
@@ -377,9 +409,6 @@
 
         //create a new player
         player = new Player(window.centerX, window.centerY, 0.15, 'pineappleAnimation');
-
-        //add player animation
-        player.addAnimation('pineappleAnimation');
     }
 
     function update() {
@@ -432,6 +461,9 @@
 
         // Bullet x Enemy collisions
         game.physics.arcade.collide(EnemyGroup, BulletGroup, bulletCollisionHandler);
+
+        // Bullet x Player collision
+        game.physics.arcade.collide(BulletGroup, PlayerGroup, function(b, p) { b.kill(); player.got_hit(); });
 
         // Kill off screen bullets
         // ** Modified to kill only out of bounds bullets
