@@ -20,6 +20,7 @@
         game.load.image('pineapple', 'pineapple.png')
         game.load.image('background', 'water_tile.jpg');
         game.load.spritesheet('pineappleAnimation', 'pineappleAnimation.png',165,465);
+        game.load.spritesheet('pinkEnemyAnimation', 'pinkEnemyAnimation.png',165,240);
     }
 
     var player;
@@ -125,13 +126,14 @@
                 game.camera.follow(this.sprite);
 
 
-                this.shadow = game.add.sprite(xPos + this.offset.x, yPos + this.offset.y, image);
+                this.shadow = game.add.sprite(xPos + this.x, yPos + this.y, image);
                 game.physics.arcade.enable(this.shadow)
                 this.shadow.scale.setTo(scale, scale)
                 game.add.tween(this.sprite.scale).to( {x:scale * 1.4, y:scale * 1.4}, 4000, Phaser.Easing.Linear.Non, true, 0, 200, true);
                 this.shadow.tint = 0x000000;
                 this.shadow.alpha = 0.6;
                 game.world.moveDown(this.shadow)
+
             }
 
             addAnimation (name) {
@@ -156,16 +158,17 @@
 
         function EnemySprite(width, height, color, x, y, a) {
                 // Create sprite
-                var sprite;
-                var bmd = game.add.bitmapData(width, height);
-                 
-                bmd.ctx.beginPath();
-                bmd.ctx.rect(0, 0, width, height);
-                bmd.ctx.fillStyle = color;
-                bmd.ctx.fill();
-                sprite = game.add.sprite(x, y, bmd);
-                game.physics.arcade.enable(sprite)
-                sprite.anchor.setTo(0, 0.5);
+                //var sprite;
+                //var bmd = game.add.bitmapData(width, height);
+                // bmd.ctx.beginPath();
+                // bmd.ctx.rect(0, 0, width, height);
+                // bmd.ctx.fillStyle = color;
+                // bmd.ctx.fill();
+                sprite = game.add.sprite(x,y,'pinkEnemyAnimation');
+                sprite.scale.setTo(.25,.25);
+
+                game.physics.arcade.enable(sprite);
+                sprite.anchor.setTo(0.5, 1.0);
 
                 // Rotated to init angle
                 sprite.angle = a
@@ -186,6 +189,8 @@
                     this.sprite.reset(Math.random() * game.world.width, Math.random() * game.world.height);
                     this.sprite.alive = true;
                 }
+
+                this.addAnimation('pinkEnemyAnimation');
 
                 // ID
                 this.id = null;
@@ -219,6 +224,14 @@
                 this.frames_since_last_shot = Math.random() * this.FRAMES_REQUIRED_FOR_SHOT;
             }
 
+            addAnimation (name) {
+                this.sprite.animations.add(name);
+            }
+
+            playAnimation (name, framesPSecond, loop) {
+                this.sprite.animations.play(name,framesPSecond,loop);
+            }
+
             set_params(w_1, w_2, w_out, b_1, b_2, b_out) {
                 this.w_1 = w_1
                 this.w_2 = w_2
@@ -247,8 +260,8 @@
 
             fire() {
                 if (this.frames_since_last_shot > this.FRAMES_REQUIRED_FOR_SHOT) {
-                    var vfa = game.physics.arcade.velocityFromAngle(this.sprite.angle, 8);
-                    var b = new Bullet(this.sprite.x - vfa.x, this.sprite.y - vfa.y, 180 + this.sprite.angle);
+                    var vfa = game.physics.arcade.velocityFromAngle(this.sprite.angle + 90, 32);
+                    var b = new Bullet(this.sprite.x - vfa.x, this.sprite.y - vfa.y, 90 + this.sprite.angle);
                     b.sprite.__owner_id__ = this.id;
                     BulletGroup.add(b.sprite);
                     this.frames_since_last_shot = 0.0;
@@ -310,6 +323,8 @@
 
                 // Bullet management
                 this.frames_since_last_shot += 1;
+
+                this.playAnimation('pinkEnemyAnimation',4,true);
             }
             
         }
