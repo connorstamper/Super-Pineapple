@@ -20,11 +20,13 @@
         game.load.image('pineapple', 'pineapple.png')
         game.load.image('background', 'water_tile.jpg');
         game.load.spritesheet('pineappleAnimation', 'pineappleAnimation.png',165,465);
+        game.load.spritesheet('pinkEnemyAnimation', 'pinkEnemyAnimation.png',165,240);
     }
 
     var player;
     function create() {
         NUM_ENEMIES = 40;
+        LIGHTING = {'x': 10.0, 'y': 20.0 }
 
         // World size
         game.world.setBounds(0, 0, 3000, 2000);
@@ -63,6 +65,7 @@
 
             addEnemy(e) {
                 this.enemies.push(e);
+                EnemyGroup.add(e.shad);
                 EnemyGroup.add(e.sprite);
                 e.id = this.curr_id;
                 this.curr_id += 1;
@@ -102,7 +105,7 @@
             }
 
             removeDeadEnemies() {
-                this.enemies = this.enemies.filter(function(a) { return a.sprite.alive; })
+                this.enemies = this.enemies.filter(function(a) { return a.sprite.alive && a.sprite.exists && a.shad.alive && a.shad.exists; })
                 this.enemies = this.enemies.slice(0, NUM_ENEMIES)
             }
 
@@ -130,15 +133,14 @@
                 this.sprite.anchor.setTo(0.5, 0.0);
 
                 this.shadow = game.add.sprite(xPos, yPos, image);
-                game.physics.arcade.enable(this.shadow)
                 this.shadow.scale.setTo(scale, scale)
                 game.add.tween(this.sprite.scale).to( {x:scale * 1.4, y:scale * 1.4}, 4000, Phaser.Easing.Linear.Non, true, 0, 200, true);
                 this.shadow.tint = 0x000000;
                 this.shadow.alpha = 0.6;
+                this.shadow.anchor.setTo(0.5, 0.0);
                 game.world.moveDown(this.shadow)
     
                 this.sprite.body.immovable = true;
-                this.shadow.body.immovable = true;
 
                 PlayerGroup.add(this.shadow)
                 PlayerGroup.add(this.sprite)
@@ -171,18 +173,19 @@
                 if (this.health < 100) { 
                     this.health = Math.min(this.health *= 1.0025, 100.0);
                     tileSpriteOverlay.alpha = 1.0 - (this.health / 100.0);
-                }
-                
+                } 
   
+                // move
                 this.sprite.velocity = game.physics.arcade.moveToPointer(this.sprite, 50, game.input.activePointer, secondsToContact);
                 this.sprite.rotation = game.physics.arcade.angleToPointer(this.sprite) + (Math.PI/2);
-                this.shadow.velocity = game.physics.arcade.moveToPointer(this.shadow, 50, game.input.activePointer, secondsToContact);
-                this.shadow.rotation = game.physics.arcade.angleToPointer(this.shadow) + (Math.PI/2);
+                this.shadow.x = this.sprite.x + LIGHTING.x;
+                this.shadow.y = this.sprite.y + LIGHTING.y;
+                this.shadow.angle = this.sprite.angle
             }
 
             fire() {
                 if (this.frames_since_last_shot > this.FRAMES_REQUIRED_FOR_SHOT) {
-                    var vfa = game.physics.arcade.velocityFromAngle(this.sprite.angle - 90, -32);
+                    var vfa = game.physics.arcade.velocityFromAngle(this.sprite.angle - 90, -48);
                     var b = new Bullet(this.sprite.x - vfa.x, this.sprite.y - vfa.y, this.sprite.angle - 90, '#0000ff', this.BULLET_SPEED, 800);
                     b.sprite.__owner_id__ = -1;
                     BulletGroup.add(b.sprite);
@@ -198,37 +201,51 @@
         }
 
         function EnemySprite(width, height, color, x, y, a) {
-                // Create sprite
-                var sprite;
-                var bmd = game.add.bitmapData(width, height);
-                 
-                bmd.ctx.beginPath();
-                bmd.ctx.rect(0, 0, width, height);
-                bmd.ctx.fillStyle = color;
-                bmd.ctx.fill();
-                sprite = game.add.sprite(x, y, bmd);
-                game.physics.arcade.enable(sprite)
-                sprite.anchor.setTo(0, 0.5);
+                shad = game.add.sprite(x, y, 'pinkEnemyAnimation');
+                sprite = game.add.sprite(x,y,'pinkEnemyAnimation');
+
+                sprite.__shadow__ = shad;
+
+                shad.tint = 0x000000;
+                shad.alpha = 0.6
+                game.world.moveDown(shad)
+                sprite.anchor.setTo(0.5, 1.0);
+                shad.anchor.setTo(0.4, 0.9);
+
+                sprite.scale.setTo(.25,.25);
+                shad.scale.setTo(.25,.25);
+
+                game.physics.arcade.enable(sprite);
+                //game.physics.arcade.enable(shad);
+                sprite.body.setSize(200, 300, 0.0, 0.0);
+                //shad.body.setSize(200, 300, 0.0, 0.0);
+ 
+                //spg.anchor.setTo(0.5, 1.0);
 
                 // Rotated to init angle
                 sprite.angle = a
+                shad.angle = a
 
                 // Bounding box
-                sprite.body.setSize(width*2, width*2, -1.0 * width, -1.0 * width);
-                return sprite;
+                //spg.body.setSize(200, 300, 0.0, 0.0);
+                return [sprite, shad];
         }
     
         class Enemy {
             constructor(e_old) {
                 // Sprite
                 if (e_old == null) {
-                    this.sprite = EnemySprite(32, 16, '#ffffff', Math.random() * game.world.width, Math.random() * game.world.height, Math.random() * 360);
+                    var es = EnemySprite(40, 60, '#ffffff', Math.random() * game.world.width, Math.random() * game.world.height, Math.random() * 360);
+                    this.sprite = es[0]
+                    this.shad = es[1]
                 }
                 else {
                     this.sprite = e_old;
+                    this.shad = e_old.__shadow__
                     this.sprite.reset(Math.random() * game.world.width, Math.random() * game.world.height);
-                    this.sprite.alive = true;
                 }
+
+                this.addAnimation('pinkEnemyAnimation');
 
                 // ID
                 this.id = null;
@@ -263,6 +280,16 @@
                 this.frames_since_last_shot = Math.random() * this.FRAMES_REQUIRED_FOR_SHOT;
             }
 
+            addAnimation (name) {
+                this.sprite.animations.add(name);
+                this.shad.animations.add(name);
+            }
+
+            playAnimation (name, framesPSecond, loop) {
+                this.sprite.animations.play(name, framesPSecond, loop);
+                this.shad.animations.play(name, framesPSecond, loop);
+            }
+
             set_params(w_1, w_2, w_out, b_1, b_2, b_out) {
                 this.w_1 = w_1
                 this.w_2 = w_2
@@ -281,18 +308,22 @@
 
             thrust_left(a) {
                 this.sprite.body.angularVelocity -= ((a + 1.0) / 2.0);
-                if (this.sprite.body.angularVelocity < (-1.0 * this.MAX_ANGULAR)) { this.sprite.body.angularVelocity = -1.0 * this.MAX_ANGULAR; }
+                if (this.sprite.body.angularVelocity < (-1.0 * this.MAX_ANGULAR)) { 
+                    this.sprite.body.angularVelocity = -1.0 * this.MAX_ANGULAR;
+                }
             }
 
             thrust_right(a) {
                 this.sprite.body.angularVelocity += (a + 1.0)/2.0;
-                if (this.sprite.body.angularVelocity > this.MAX_ANGULAR) { this.sprite.body.angularVelocity = this.MAX_ANGULAR; }
+                if (this.sprite.body.angularVelocity > this.MAX_ANGULAR) {
+                    this.sprite.body.angularVelocity = this.MAX_ANGULAR;
+                }
             }
 
             fire() {
                 if (this.frames_since_last_shot > this.FRAMES_REQUIRED_FOR_SHOT) {
-                    var vfa = game.physics.arcade.velocityFromAngle(this.sprite.angle, 8);
-                    var b = new Bullet(this.sprite.x - vfa.x, this.sprite.y - vfa.y, 180 + this.sprite.angle, '#ff0000',  this.BULLET_SPEED, 1500);
+                    var vfa = game.physics.arcade.velocityFromAngle(this.sprite.angle + 90, 32);
+                    var b = new Bullet(this.sprite.x - vfa.x, this.sprite.y - vfa.y, 90 + this.sprite.angle, '#ff0000', 600.0, 1500);
                     b.sprite.__owner_id__ = this.id;
                     BulletGroup.add(b.sprite);
                     this.frames_since_last_shot = 0.0;
@@ -354,6 +385,17 @@
 
                 // Bullet management
                 this.frames_since_last_shot += 1;
+
+                this.playAnimation('pinkEnemyAnimation',4,true);
+
+                // Update hitbox
+                this.sprite.body.setSize(180 + Math.abs(200 * (Math.sin(this.sprite.angle * (Math.PI/180)) / Math.PI*2)), 60 + Math.abs(180 * (Math.cos(this.sprite.angle * (Math.PI/180) / (Math.PI*2)))), Math.sin((this.sprite.angle) * (Math.PI/180)) * 100 - 40, Math.cos((this.sprite.angle) * (Math.PI/180)) * -100 + 100)
+
+                // Update shadow
+                this.shad.x = this.sprite.x + LIGHTING.x
+                this.shad.y = this.sprite.y + LIGHTING.y
+                this.shad.angle = this.sprite.angle
+                this.shad.alive = this.sprite.alive
             }
             
         }
@@ -428,17 +470,18 @@
         console.log(EM.avg_r, EM.max_r);
 
         // DEBUGGING HIT BOX
-        /*
+        /* 
         for (var i in EM.enemies) {
             game.debug.body(EM.enemies[i].sprite);
         }
         */
+        
 
         function enemyCollisionHandler(e1, e2) {
             e1.kill()
             e2.kill()
-            EM.evolveNewEnemy(e1)
-            EM.evolveNewEnemy(e2)
+            EM.evolveNewEnemy()
+            EM.evolveNewEnemy()
         }
 
         function bulletCollisionHandler(a1, a2) {
