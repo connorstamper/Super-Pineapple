@@ -17,17 +17,26 @@
     var game = new Phaser.Game(window.innerWidth, window.innerHeight, Phaser.AUTO, '', { preload: preload, create: create, update: update });
 
     function preload() {
+        
+        //game.load.atlasJSONHash('pineappleAnimation', 'pineappleAnimation.png', 'pineappleAnimation.json', Phaser.Loader.TEXTURE_ATLAS_JSON_HASH);
+
+        game.load.image('pineapple', 'pineapple.png');
+        game.load.image('pineapple', 'pineapple.png')
+        game.load.image('background', 'background.png');
+        game.load.spritesheet('pineappleAnimation', 'pineappleAnimation.png',165,465);
+        
+
+
         /*
-        game.load.image('sky', 'assets/sky.png');
         game.load.image('ground', 'assets/platform.png');
         game.load.image('star', 'assets/star.png');
         game.load.spritesheet('dude', 'assets/dude.png', 32, 48);
         */
     }
-
+    var player;
     function create() {
         // World size
-        game.world.setBounds(0, 0, 2000, 1000);
+        game.world.setBounds(0, 0, 4000, 3000);
         
 
         cursors = game.input.keyboard.createCursorKeys()
@@ -62,6 +71,44 @@
                 }
                 return dists
             }
+        }
+         //create new player
+        // player = game.add.sprite(game.world.centerX,game.world.centerY,'pineappleAnimation');
+        // player.anchor.setTo(0.5, 0.5);
+        // //Enable Arcade physics for player
+        // game.physics.enable(player, Phaser.Physics.ARCADE);
+        // //scale image
+        // player.scale.setTo(.15,.15);
+        // //make player size pulse
+        // game.add.tween(player.scale).to( { x: .2, y: .2 }, 4000, Phaser.Easing.Linear.None, true, 0, 200, true);
+        // //follow player
+        // game.camera.follow(player);
+        // //add animation
+        // player.animations.add('pineappleAnimation');
+       
+        class Player {
+            constructor(xPos,yPos,scale,image) {
+                this.sprite = game.add.sprite(xPos,yPos,image);
+                game.physics.arcade.enable(this.sprite);
+                this.sprite.scale.setTo(scale,scale);
+                game.add.tween(this.sprite.scale).to( {x:scale*1.4, y:scale*1.4}, 4000, Phaser.Easing.Linear.None,true, 0, 200, true);
+                game.camera.follow(this.sprite);
+            }
+
+            addAnimation (name) {
+                this.sprite.animations.add(name);
+            }
+
+            playAnimation (name, framesPSecond, loop) {
+                this.sprite.animations.play(name,framesPSecond,loop);
+            }
+            //controls player movement- parameter is milliseconds until the image gets to the cursor
+            movement(secondsToContact) {
+                
+                this.sprite.velocity = game.physics.arcade.moveToPointer(this.sprite,50,game.input.activePointer, secondsToContact);
+                this.sprite.rotation = game.physics.arcade.angleToPointer(this.sprite) + (Math.PI/2);
+            }
+
         }
 
         // Enemy class
@@ -163,6 +210,10 @@
             
         }
 
+        
+        tileSprite = game.add.tileSprite(0, 0, window.innerWidth*10, window.innerHeight*10, 'background');
+
+
         EM = new EnemyManager();
         e0 = new Enemy(32, 16, '#ffffff', game.world.width / 3, game.world.centerY - 30, 0);
         e1 = new Enemy(32, 16, '#ffffff', 2 * (game.world.width / 3), game.world.centerY + 30, 180);
@@ -172,6 +223,20 @@
         EM.addEnemy(e1)
         EM.addEnemy(e2)
         EM.addEnemy(e3)
+
+        //create a new player
+        player = new Player(window.centerX, window.centerY, 0.15, 'pineappleAnimation');
+
+        //add player animation
+        player.addAnimation('pineappleAnimation');
+
+
+
+        
+
+        
+
+
        /* //  A simple background for our game
         game.add.sprite(0, 0, 'sky');
 
@@ -235,55 +300,10 @@
 
     function update() {
         EM.next()
-
-        /*
-        //  Collide the player and the stars with the platforms
-        var hitPlatform = game.physics.arcade.collide(player, platforms);
-
-        //  Reset the players velocity (movement)
-        player.body.velocity.x = 0;
-
-        if (cursors.left.isDown)
-        {
-            //  Move to the left
-            player.body.velocity.x = -150;
-
-            player.animations.play('left');
-        }
-        else if (cursors.right.isDown)
-        {
-            //  Move to the right
-            player.body.velocity.x = 150;
-
-            player.animations.play('right');
-        }
-        else
-        {
-            //  Stand still
-            player.animations.stop();
-
-            player.frame = 4;
-        }
-
-        //  Allow the player to jump if they are touching the ground.
-        if (cursors.up.isDown && player.body.touching.down && hitPlatform)
-        {
-            player.body.velocity.y = -350;
-        }
-
-        game.physics.arcade.collide(stars, platforms);
-        game.physics.arcade.overlap(player, stars, collectStar, null, this);
-        */
-    }
-    
-/*
-    function collectStar (player, star) {
-
-        // Removes the star from the screen
-        star.kill();
-
-    }
-*/
+        player.playAnimation('pineappleAnimation', 5, true);
+        //controls how fast pineapple moves towards mouse
+        player.movement(500);
+}
 </script>
 
 </body>
