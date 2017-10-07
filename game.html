@@ -3,7 +3,8 @@
 <head> 
 	<meta charset="UTF-8" />
 	<title>Phaser - Making your first game, part 1</title>
-	<script type="text/javascript" src="js/phaser.min.js"></script>
+	<script type="text/javascript" src="bower_components/phaser/build/phaser.min.js"></script>
+    <script type="text/javascript" src="bower_components/numjs/dist/numjs.min.js"></script>
     <style type="text/css">
         body {
             margin: 0;
@@ -25,6 +26,10 @@
     }
 
     function create() {
+        // World size
+        game.world.setBounds(0, 0, 2000, 1000);
+        
+
         cursors = game.input.keyboard.createCursorKeys()
 
         //  We're going to be using physics, so enable the Arcade Physics system
@@ -33,17 +38,29 @@
         // EnemyManager class
         class EnemyManager {
             constructor() {
-                this.enemies = []   
+                this.enemies = []
+                this.player
             }
 
             addEnemy(e) {
                 this.enemies.push(e)
             }
 
-            next(args) {
-                for (var i in this.enemies) {
-                    this.enemies[i].next(args)
+            next() {
+                for (var i in this.enemies) {       
+                    this.enemies[i].next({ 'distances': this.getDistances(this.enemies[i].sprite.x, this.enemies[i].sprite.y) })
                 }
+            }
+
+            getDistances(x, y) {
+                var dists = []
+                var a = [x, y]
+                for (var i in this.enemies) {
+                    var b = [this.enemies[i].sprite.x, this.enemies[i].sprite.y]
+                    var dist = Math.sqrt(Math.pow(a[0] - b[0], 2) + Math.pow(a[1] - b[1], 2))
+                    dists.push([dist, this.enemies[i]])                    
+                }
+                return dists
             }
         }
 
@@ -59,12 +76,24 @@
                 this.bmd.ctx.fill();
                 this.sprite = game.add.sprite(x, y, this.bmd);
                 game.physics.arcade.enable(this.sprite)
-                this.sprite.anchor.setTo(0.5, 0.5);
+                this.sprite.anchor.setTo(1.0, 0.5);
 
                 this.sprite.angle = a
 
                 // Movement mechanics
-                //this.sprite.drag = 2;
+                this.sprite.drag = 10000;
+                this.movement_weights = [3, 100, 100];
+
+                // Policy params
+                this.w_1 = nj.random([10,5]).subtract(nj.ones([10,5]).divide(2.0))
+                this.w_2 = nj.random([5,5]).subtract(nj.ones([5,5]).divide(2.0))
+                this.w_out = nj.random([5,3]).subtract(nj.ones([5,3]).divide(2.0))
+                this.b_1 = nj.random([5])
+                this.b_2 = nj.random([5])
+                this.b_out = nj.random([3])
+
+                this.MAX_SPEED = 200;
+                this.MAX_ANGULAR = 250;
             }
 
             // Actuators
@@ -75,26 +104,74 @@
             }
 
             thrust_left(a) {
-                this.sprite.body.angularVelocity = -1.0*a;
+                this.sprite.body.angularVelocity -= ((a + 1.0) / 2.0);
+                if (this.sprite.body.angularVelocity < (-1.0 * this.MAX_ANGULAR)) { this.sprite.body.angularVelocity = -1.0 * this.MAX_ANGULAR; }
             }
 
             thrust_right(a) {
-                this.sprite.body.angularVelocity = a;
+                this.sprite.body.angularVelocity += (a + 1.0)/2.0;
+                if (this.sprite.body.angularVelocity > this.MAX_ANGULAR) { this.sprite.body.angularVelocity = this.MAX_ANGULAR; }
+            }
+    
+            nonlin(x) {
+                for (var i = 0; i < x.shape[0]; i++) {
+                    x.set(i, Math.max(0, x.get(i)))
+                }
+                return x;
+            }
+
+            ff(i) {
+                var h_1 = nj.sigmoid(i.dot(this.w_1).add(this.b_1))
+                var h_2 = nj.sigmoid(h_1.dot(this.w_2).add(this.b_2))
+                return nj.sigmoid(h_2.dot(this.w_out).add(this.b_out))
             }
 
             next(args) {
-                this.thrust_forward(1)
-                this.thrust_right(10)
+                var dists = args['distances']
+                dists.sort(function(a, b) { return a[0] - b[0] })
+                var top_3 = dists.slice(1, 4);
+                
+                var mx = this.sprite.x
+                var my = this.sprite.y
+                if (top_3.length >= 3) {
+                    var i = nj.array([mx - top_3[0][1].sprite.x, my - top_3[0][1].sprite.y, mx - top_3[1][1].sprite.x, my - top_3[1][1].sprite.y, mx - top_3[2][1].sprite.x, my - top_3[2][1].sprite.y, 0.0, 0.0, 0.0, 0.0])
+                }
+                else {
+                    var i = nj.zeros([10])
+                }
+                var out = this.ff(i)
+
+                this.thrust_forward(out.get(0) * this.movement_weights[0])
+                this.thrust_left(out.get(1) * this.movement_weights[1])
+                this.thrust_right(out.get(2) * this.movement_weights[2])
+
+                // World wrap
+                /*
+                if (this.sprite.x > game.world.width) { this.sprite.x = 50; }
+                if (this.sprite.x < 0) { this.sprite.x = game.world.width - 50; }
+                if (this.sprite.y > game.world.height) { this.sprite.y = 50; }
+                if (this.sprite.y < 0) { this.sprite.y = game.world.height - 50; }
+                */
+                game.world.wrap(this.sprite, 5.0, false,  true, true)
+
+                // Mav vel
+                this.sprite.body.velocity.setMagnitude(Math.min(this.MAX_SPEED, this.sprite.body.velocity.getMagnitude()));
+
+                // No skate
+                //this.sprite.angle = Math.atan2(this.sprite.body.velocity.y, this.sprite.body.velocity.x) * (180.0 / Math.PI)
             }
             
         }
 
         EM = new EnemyManager();
-        e = new Enemy(32, 16, '#ffffff', game.world.width / 3, game.world.centerY - 30, 0);
+        e0 = new Enemy(32, 16, '#ffffff', game.world.width / 3, game.world.centerY - 30, 0);
         e1 = new Enemy(32, 16, '#ffffff', 2 * (game.world.width / 3), game.world.centerY + 30, 180);
-        EM.addEnemy(e)
+        e2 = new Enemy(32, 16, '#ffffff', game.world.width / 3, game.world.centerY - 90, 0);
+        e3 = new Enemy(32, 16, '#ffffff', 2 * (game.world.width / 3), game.world.centerY + 90, 180);
+        EM.addEnemy(e0)
         EM.addEnemy(e1)
-
+        EM.addEnemy(e2)
+        EM.addEnemy(e3)
        /* //  A simple background for our game
         game.add.sprite(0, 0, 'sky');
 
