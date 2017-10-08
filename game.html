@@ -15,6 +15,7 @@
 
 <script type="text/javascript">
     var game = new Phaser.Game(window.innerWidth, window.innerHeight, Phaser.AUTO, '', { preload: preload, create: create, update: update, render: render });
+    OVER = false;
 
     //  The Google WebFont Loader will look for this object, so create it before loading the script.
     WebFontConfig = {
@@ -200,6 +201,31 @@
                 this.health = 100.0;
 
                 this.score = 0.0;
+
+                this.emitter = game.add.emitter(xPos, yPos, 100);
+                this.emitter.makeParticles(image);
+                this.emitter.gravity = 200;
+                this.emitter.setScale(0.05, 0.1, 0.05, 0.1);
+
+                this.game_over = null;
+                this.game_over_shad = null;
+ 
+                this.game_over_shad = game.add.text(game.camera.view.centerX + 4, game.camera.view.centerY + 2, "GAME OVER!", {
+                    font: "48px 'Press Start 2P'",
+                    fill: "#333333",
+                    align: "left",
+                });
+                this.game_over = game.add.text(game.camera.view.centerX, game.camera.view.centerY, "GAME OVER!", {
+                    font: "48px 'Press Start 2P'",
+                    fill: "#ffffff",
+                    align: "center",
+                    height: "100px",
+                    boundsAlignV: "bottom"
+                });
+                this.game_over.smoothed = false;
+                this.game_over_shad.smoothed = false;
+                this.game_over.alpha = 0
+                this.game_over_shad.alpha = 0
             }
 
             addAnimation (name) {
@@ -241,15 +267,39 @@
                 }
             }
 
+            reset() {
+                OVER = false;
+                this.sprite.reset(0,0);
+                this.shadow.reset(0,0);
+                this.health = 100.0;
+                this.score = 0;
+                tileSpriteOverlay.alpha = 0.0;
+                this.game_over.alpha = 0.0
+                this.game_over_shad.alpha = 0.0
+            }
+
             got_hit() {
                 this.health -= 15.0;
                 if (this.health < 0.0) {
-                    this.score = 0;
-                    this.sprite.reset(0,0); 
-                    this.shadow.reset(0, 0); 
-                    this.health = 100.0; 
-                    tileSpriteOverlay.alpha = 0.0;
+                    this.game_over.x = game.camera.view.centerX;
+                    this.game_over.y = game.camera.view.centerY;
+                    this.game_over_shad.x = game.camera.view.centerX+4;
+                    this.game_over_shad.y = game.camera.view.centerY+2;
+                    this.game_over.alpha = 1.0
+                    this.game_over.alpha = 1.0
+
+                    //game.paused = true;
+                    OVER = true;
+
+                    //this.sprite.reset(0,0); 
+                    //this.shadow.reset(0, 0); 
+                    //this.health = 100.0; 
+                    //tileSpriteOverlay.alpha = 0.0;
                 }
+
+                this.emitter.x = this.sprite.x
+                this.emitter.y = this.sprite.y
+                this.emitter.start(true, 1000, null, 10);
             }
 
             destroyed_enemy(r) {
@@ -298,6 +348,7 @@
                     this.shad = e_old.__shadow__
                     this.sprite.reset(Math.random() * game.world.width, Math.random() * game.world.height);
                 }
+                this.sprite.__die__ = this.die
 
                 this.addAnimation('pinkEnemyAnimation');
 
@@ -333,6 +384,7 @@
                 this.FRAMES_REQUIRED_FOR_SHOT = 30;
                 this.frames_since_last_shot = Math.random() * this.FRAMES_REQUIRED_FOR_SHOT;
             }
+
 
             addAnimation (name) {
                 this.sprite.animations.add(name);
@@ -531,9 +583,13 @@
         player.playAnimation('pineappleAnimation', 5, true);
         //controls how fast pineapple moves towards mouse
         player.movement(500);
+        game.world.bringToTop(PlayerGroup)
 
         // Player fire bullet
         if (this.spaceKey.isDown) {
+            if (OVER) {
+                player.reset();
+            }
             player.fire();
         }
 
