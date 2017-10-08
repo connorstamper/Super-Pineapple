@@ -16,12 +16,58 @@
 <script type="text/javascript">
     var game = new Phaser.Game(window.innerWidth, window.innerHeight, Phaser.AUTO, '', { preload: preload, create: create, update: update });
 
+    //  The Google WebFont Loader will look for this object, so create it before loading the script.
+    WebFontConfig = {
+
+        //  'active' means all requested fonts have finished loading
+        //  We set a 1 second delay before calling 'createText'.
+        //  For some reason if we don't the browser cannot render the text the first time it's created.
+        active: function() { game.time.events.add(Phaser.Timer.SECOND, createText, this); },
+
+        //  The Google Fonts we want to load (specify as many as you like in the array)
+        google: {
+          families: ['Press Start 2P']
+        }
+
+    };
+
     function preload() {
         game.load.image('pineapple', 'pineapple.png')
         game.load.image('background', 'water_tile.jpg');
         game.load.spritesheet('pineappleAnimation', 'pineappleAnimation.png',165,465);
         game.load.spritesheet('pinkEnemyAnimation', 'pinkEnemyAnimation.png',165,240);
+        game.load.spritesheet('rocketAnimation', 'rocketAnimation.png', 225, 480);
+        game.load.image('hotdog', 'hotdog.png');
+
+        game.load.script('webfont', '//ajax.googleapis.com/ajax/libs/webfont/1.4.7/webfont.js');
     }
+
+    // Score text
+    score_text = null;
+    function createText() {
+        score_text = game.add.text(16, 16, "0", {
+            font: "32px 'Press Start 2P'",
+            fill: "#ffffff",
+            align: "left",
+            height: "100px",
+            boundsAlignV: "bottom"
+        });
+        score_text_shad = game.add.text(16 + 4, 16 + 2, "0", {
+            font: "32px 'Press Start 2P'",
+            fill: "#333333",
+            align: "left",
+        });
+        score_text.smoothed = false;
+        score_text_shad.smoothed = false;
+        score_text.fixedToCamera = true;
+        score_text.cameraOffset.x = 16;
+        score_text.cameraOffset.y = 16;
+        score_text_shad.fixedToCamera = true;
+        score_text_shad.cameraOffset.x = 20;
+        score_text_shad.cameraOffset.y = 18;
+    }
+
+
 
     var player;
     function create() {
@@ -29,7 +75,7 @@
         LIGHTING = {'x': 10.0, 'y': 20.0 }
 
         // World size
-        game.world.setBounds(0, 0, 3000, 2000);
+        game.world.setBounds(0, 0, 4000, 3000);
 
         // Register keys
         cursors = game.input.keyboard.createCursorKeys()
@@ -152,6 +198,8 @@
                 this.BULLET_SPEED = 1000.0;
 
                 this.health = 100.0;
+
+                this.score = 0.0;
             }
 
             addAnimation (name) {
@@ -185,8 +233,8 @@
 
             fire() {
                 if (this.frames_since_last_shot > this.FRAMES_REQUIRED_FOR_SHOT) {
-                    var vfa = game.physics.arcade.velocityFromAngle(this.sprite.angle - 90, -48);
-                    var b = new Bullet(this.sprite.x - vfa.x, this.sprite.y - vfa.y, this.sprite.angle - 90, '#0000ff', this.BULLET_SPEED, 800);
+                    var vfa = game.physics.arcade.velocityFromAngle(this.sprite.angle - 90, -64);
+                    var b = new Bullet(this.sprite.x - vfa.x, this.sprite.y - vfa.y, this.sprite.angle - 90, '#0000ff', this.BULLET_SPEED, 1000, 'rocketAnimation');
                     b.sprite.__owner_id__ = -1;
                     BulletGroup.add(b.sprite);
                     this.frames_since_last_shot = 0.0;
@@ -196,6 +244,10 @@
             got_hit() {
                 this.health -= 15.0;
                 if (this.health < 0.0) { this.sprite.reset(0,0); this.shadow.reset(0, 0); this.health = 100.0; tileSpriteOverlay.alpha = 0.0; }
+            }
+
+            destroyed_enemy(r) {
+                this.score += 10.0;
             }
 
         }
@@ -216,11 +268,7 @@
                 shad.scale.setTo(.25,.25);
 
                 game.physics.arcade.enable(sprite);
-                //game.physics.arcade.enable(shad);
                 sprite.body.setSize(200, 300, 0.0, 0.0);
-                //shad.body.setSize(200, 300, 0.0, 0.0);
- 
-                //spg.anchor.setTo(0.5, 1.0);
 
                 // Rotated to init angle
                 sprite.angle = a
@@ -323,7 +371,7 @@
             fire() {
                 if (this.frames_since_last_shot > this.FRAMES_REQUIRED_FOR_SHOT) {
                     var vfa = game.physics.arcade.velocityFromAngle(this.sprite.angle + 90, 32);
-                    var b = new Bullet(this.sprite.x - vfa.x, this.sprite.y - vfa.y, 90 + this.sprite.angle, '#ff0000', 600.0, 1500);
+                    var b = new Bullet(this.sprite.x - vfa.x, this.sprite.y - vfa.y, 90 + this.sprite.angle, '#ff0000', 600.0, 1500, 'hotdog');
                     b.sprite.__owner_id__ = this.id;
                     BulletGroup.add(b.sprite);
                     this.frames_since_last_shot = 0.0;
@@ -401,22 +449,22 @@
         }
 
         class Bullet {
-            constructor(x, y, a, c, V, L) {
+            constructor(x, y, a, c, V, L, S) {
+                this.S = S;
+
                 // bullet v
                 this.V = V;
 
-                this.bmd = game.add.bitmapData(8, 4);
-                 
-                this.bmd.ctx.beginPath();
-                this.bmd.ctx.rect(0, 0, 8, 4);
-                this.bmd.ctx.fillStyle = c;
-                this.bmd.ctx.fill();
-                this.sprite = game.add.sprite(x, y, this.bmd);
+                this.sprite = game.add.sprite(x, y, S);
+                if (S == 'rocketAnimation') {
+                    this.sprite.scale.setTo(0.1, 0.1);
+                }
+                else {
+                    this.sprite.scale.setTo(0.1, 0.1);
+                }
                 game.physics.arcade.enable(this.sprite)
-                //this.sprite.anchor.setTo(1.0, 0.5);
-
-                // Rotated to init angle
-                this.sprite.angle = a
+                
+                this.sprite.angle = a;
 
                 // Give bullet velocity
                 var vfa = game.physics.arcade.velocityFromAngle(this.sprite.angle, this.V);
@@ -426,8 +474,16 @@
                 this.sprite.checkWorldBounds = true;
                 this.sprite.events.onOutOfBounds.add(function(b) { b.destroy(); }, this);
 
+                if (S == 'rocketAnimation') {
+                    this.sprite.angle = a + 90;
+                }
+
                 // Lifespan
                 this.sprite.lifespan = L;
+
+                if (S == 'rocketAnimation') {
+                    this.sprite.animations.add('rocketAnimation');
+                }
             }
         }
 
@@ -466,8 +522,21 @@
             player.fire();
         }
 
+        // Update score
+        if (score_text != null) {
+            score_text.setText(player.score);
+            score_text_shad.setText(player.score);
+            game.world.bringToTop(score_text_shad);
+            game.world.bringToTop(score_text);
+        }
+        /*
+        score_text.x = game.camera.x + 16;
+        score_text.y = game.camera.y + 16;
+        score_text_shad.x = game.camera.x + 20;
+        score_text_shad.y = game.camera.y + 18;
+        */
 
-        console.log(EM.avg_r, EM.max_r);
+        //console.log(EM.avg_r, EM.max_r);
 
         // DEBUGGING HIT BOX
         /* 
@@ -485,6 +554,7 @@
         }
 
         function bulletCollisionHandler(a1, a2) {
+            if (a2.__owner_id__ == -1) { player.destroyed_enemy(a1.reward); }
             a1.kill()
             EM.evolveNewEnemy(a1);
             for (var i in EM.enemies) {
@@ -496,6 +566,7 @@
         // Update bullet lifespans
         for (var i in BulletGroup.children) {
             if (!BulletGroup.children[i].alive) { BulletGroup.children[i].destroy(); }
+            else if (BulletGroup.children[i].S == 'rocketAnimation') { BulletGroup.children[i].animations.play('rocketAnimation', 5, true); }
         }
 
         // Enemy collisions
@@ -506,7 +577,10 @@
         game.physics.arcade.collide(EnemyGroup, BulletGroup, bulletCollisionHandler);
 
         // Bullet x Player collision
-        game.physics.arcade.collide(BulletGroup, PlayerGroup, function(b, p) { b.kill(); player.got_hit(); });
+        game.physics.arcade.collide(BulletGroup, PlayerGroup, function(b, p) { if (b.__owner_id__ != -1 ) { b.kill(); player.got_hit(); }});
+
+        // Bullet x Bullet collision
+        game.physics.arcade.collide(BulletGroup, BulletGroup, function(b1, b2) { if (b1.__owner_id__ !== b2.__owner_id__) { b1.kill(); b2.kill(); }});
 
         // Kill off screen bullets
         // ** Modified to kill only out of bounds bullets
