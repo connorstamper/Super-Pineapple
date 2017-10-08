@@ -14,7 +14,7 @@
 <body>
 
 <script type="text/javascript">
-    var game = new Phaser.Game(window.innerWidth, window.innerHeight, Phaser.AUTO, '', { preload: preload, create: create, update: update });
+    var game = new Phaser.Game(window.innerWidth, window.innerHeight, Phaser.AUTO, '', { preload: preload, create: create, update: update, render: render });
 
     //  The Google WebFont Loader will look for this object, so create it before loading the script.
     WebFontConfig = {
@@ -463,7 +463,16 @@
                     this.sprite.scale.setTo(0.1, 0.1);
                 }
                 game.physics.arcade.enable(this.sprite)
-                
+
+                if (S == 'rocketAnimation') {
+                    this.sprite.anchor.setTo(0.5, 0);
+                    this.sprite.body.setSize(200, 200, 0, -50.0);
+                }
+                else {
+                    this.sprite.anchor.setTo(0.5, 0.5);
+                    this.sprite.body.setSize(310, 310, 0, 0);
+                }
+
                 this.sprite.angle = a;
 
                 // Give bullet velocity
@@ -538,12 +547,10 @@
 
         //console.log(EM.avg_r, EM.max_r);
 
-        // DEBUGGING HIT BOX
-        /* 
-        for (var i in EM.enemies) {
-            game.debug.body(EM.enemies[i].sprite);
-        }
-        */
+        // DEBUGGING HIT BOX 
+        /*for (var i in BulletGroup.children) {
+            game.debug.body(BulletGroup.children[i]);
+        }*/
         
 
         function enemyCollisionHandler(e1, e2) {
@@ -593,6 +600,13 @@
             }
         }
         */
+    }
+
+    function render() {
+         // DEBUGGING HIT BOX 
+        for (var i in BulletGroup.children) {
+            game.debug.body(BulletGroup.children[i]);
+        }
     }
 
 </script>
