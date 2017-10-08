@@ -71,11 +71,11 @@
 
     var player;
     function create() {
-        NUM_ENEMIES = 40;
+        NUM_ENEMIES = 50;
         LIGHTING = {'x': 10.0, 'y': 20.0 }
 
         // World size
-        game.world.setBounds(0, 0, 4000, 3000);
+        game.world.setBounds(0, 0, 3000, 2500);
 
         // Register keys
         cursors = game.input.keyboard.createCursorKeys()
@@ -243,7 +243,13 @@
 
             got_hit() {
                 this.health -= 15.0;
-                if (this.health < 0.0) { this.sprite.reset(0,0); this.shadow.reset(0, 0); this.health = 100.0; tileSpriteOverlay.alpha = 0.0; }
+                if (this.health < 0.0) {
+                    this.score = 0;
+                    this.sprite.reset(0,0); 
+                    this.shadow.reset(0, 0); 
+                    this.health = 100.0; 
+                    tileSpriteOverlay.alpha = 0.0;
+                }
             }
 
             destroyed_enemy(r) {
