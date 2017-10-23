@@ -15,7 +15,7 @@
 <body>
 
 <script type="text/javascript">
-    var game = new Phaser.Game(window.innerWidth, window.innerHeight, Phaser.AUTO, '', { preload: preload, create: create, update: update, render: render });
+    var game = new Phaser.Game(window.innerWidth, window.innerHeight, Phaser.AUTO, '', { preload: preload, create: create, update: update });
     OVER = false;
 
     //  The Google WebFont Loader will look for this object, so create it before loading the script.
@@ -309,13 +309,7 @@
                     this.game_over.alpha = 1.0
                     this.game_over.alpha = 1.0
 
-                    //game.paused = true;
                     OVER = true;
-
-                    //this.sprite.reset(0,0); 
-                    //this.shadow.reset(0, 0); 
-                    //this.health = 100.0; 
-                    //tileSpriteOverlay.alpha = 0.0;
                 }
 
                 this.emitter.x = this.sprite.x
@@ -352,7 +346,6 @@
                 shad.angle = a
 
                 // Bounding box
-                //spg.body.setSize(200, 300, 0.0, 0.0);
                 return [sprite, shad];
         }
     
@@ -386,9 +379,6 @@
                 this.b_1 = nj.zeros([5])
                 this.b_2 = nj.zeros([5])
                 this.b_out = nj.zeros([4])
-                //this.b_1 = nj.random([5])
-                //this.b_2 = nj.random([5])
-                //this.b_out = nj.random([3])
 
                 // Enemy hyperparams
                 this.MAX_SPEED = 200;
@@ -499,9 +489,6 @@
 
                 // Mav vel
                 this.sprite.body.velocity.setMagnitude(Math.min(this.MAX_SPEED, this.sprite.body.velocity.getMagnitude()));
-
-                // No skate
-                //this.sprite.angle = Math.atan2(this.sprite.body.velocity.y, this.sprite.body.velocity.x) * (180.0 / Math.PI)
 
                 // Drag
                 var vfa = game.physics.arcade.velocityFromAngle(this.sprite.angle, this.DRAG);
@@ -628,20 +615,6 @@
             if (c.__type__ == "cactus") {   c.animations.play('cactusAnimation', 3, true); }
             else { c.animations.play('coralAnimation', 6, true); }
         } 
-       /*
-        score_text.x = game.camera.x + 16;
-        score_text.y = game.camera.y + 16;
-        score_text_shad.x = game.camera.x + 20;
-        score_text_shad.y = game.camera.y + 18;
-        */
-
-        //console.log(EM.avg_r, EM.max_r);
-
-        // DEBUGGING HIT BOX 
-        /*for (var i in BulletGroup.children) {
-            game.debug.body(BulletGroup.children[i]);
-        }*/
-        
 
         function enemyCollisionHandler(e1, e2) {
             e1.kill()
@@ -678,27 +651,7 @@
 
         // Bullet x Bullet collision
         game.physics.arcade.collide(BulletGroup, BulletGroup, function(b1, b2) { if (b1.__owner_id__ !== b2.__owner_id__) { b1.kill(); b2.kill(); }});
-
-        // Kill off screen bullets
-        // ** Modified to kill only out of bounds bullets
-        /*
-        for (var i in BulletGroup.children) {
-            var bx = BulletGroup.children[i].x
-            var by = BulletGroup.children[i].y
-            if (bx < game.camera.x || bx > game.camera.x + game.camera.width || by < game.camera.y || by > game.camera.y + game.camera.height) {
-                BulletGroup.children[i].destroy();
-            }
-        }
-        */
     }
-
-    function render() {
-         // DEBUGGING HIT BOX 
-        /*for (var i in BulletGroup.children) {
-            game.debug.body(BulletGroup.children[i]);
-        }*/
-    }
-
 </script>
 
 </body>
